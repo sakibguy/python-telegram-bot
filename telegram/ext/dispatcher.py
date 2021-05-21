@@ -162,6 +162,11 @@ class Dispatcher:
                 stacklevel=3,
             )
 
+        if self.workers < 1:
+            warnings.warn(
+                'Asynchronous callbacks can not be processed without at least one worker thread.'
+            )
+
         self.user_data: DefaultDict[int, Dict[object, object]] = defaultdict(dict)
         self.chat_data: DefaultDict[int, Dict[object, object]] = defaultdict(dict)
         self.bot_data = {}
@@ -205,7 +210,7 @@ class Dispatcher:
         # For backward compatibility, we allow a "singleton" mode for the dispatcher. When there's
         # only one instance of Dispatcher, it will be possible to use the `run_async` decorator.
         with self.__singleton_lock:
-            if self.__singleton_semaphore.acquire(blocking=False):
+            if self.__singleton_semaphore.acquire(blocking=False):  # pylint: disable=R1732
                 self._set_singleton(self)
             else:
                 self._set_singleton(None)
@@ -511,7 +516,7 @@ class Dispatcher:
             handler.conversations = self.persistence.get_conversations(handler.name)
 
         if group not in self.handlers:
-            self.handlers[group] = list()
+            self.handlers[group] = []
             self.groups.append(group)
             self.groups = sorted(self.groups)
 

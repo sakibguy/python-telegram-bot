@@ -590,6 +590,33 @@ class TestBasePersistence:
             "BasePersistence.insert_bot does not handle objects that can not be copied."
         )
 
+    def test_bot_replace_insert_bot_classes(self, bot, bot_persistence, recwarn):
+        """Here check that classes are just returned verbatim."""
+        persistence = bot_persistence
+        persistence.set_bot(bot)
+
+        class CustomClass:
+            pass
+
+        persistence.update_bot_data({1: CustomClass})
+        assert persistence.bot_data[1] is CustomClass
+        persistence.update_chat_data(123, {1: CustomClass})
+        assert persistence.chat_data[123][1] is CustomClass
+        persistence.update_user_data(123, {1: CustomClass})
+        assert persistence.user_data[123][1] is CustomClass
+
+        assert persistence.get_bot_data()[1] is CustomClass
+        assert persistence.get_chat_data()[123][1] is CustomClass
+        assert persistence.get_user_data()[123][1] is CustomClass
+
+        assert len(recwarn) == 2
+        assert str(recwarn[0].message).startswith(
+            "BasePersistence.replace_bot does not handle classes."
+        )
+        assert str(recwarn[1].message).startswith(
+            "BasePersistence.insert_bot does not handle classes."
+        )
+
     def test_bot_replace_insert_bot_objects_with_faulty_equality(self, bot, bot_persistence):
         """Here check that trying to compare obj == self.REPLACED_BOT doesn't lead to problems."""
         persistence = bot_persistence
@@ -960,9 +987,15 @@ class TestPickelPersistence:
         assert not pickle_persistence.conversations['name1'] == conversation1
         pickle_persistence.update_conversation('name1', (123, 123), 5)
         assert pickle_persistence.conversations['name1'] == conversation1
+        assert pickle_persistence.get_conversations('name1') == conversation1
         with open('pickletest_conversations', 'rb') as f:
             conversations_test = defaultdict(dict, pickle.load(f))
         assert conversations_test['name1'] == conversation1
+
+        pickle_persistence.conversations = None
+        pickle_persistence.update_conversation('name1', (123, 123), 5)
+        assert pickle_persistence.conversations['name1'] == {(123, 123): 5}
+        assert pickle_persistence.get_conversations('name1') == {(123, 123): 5}
 
     def test_updating_single_file(self, pickle_persistence, good_pickle_files):
         pickle_persistence.single_file = True
@@ -999,9 +1032,15 @@ class TestPickelPersistence:
         assert not pickle_persistence.conversations['name1'] == conversation1
         pickle_persistence.update_conversation('name1', (123, 123), 5)
         assert pickle_persistence.conversations['name1'] == conversation1
+        assert pickle_persistence.get_conversations('name1') == conversation1
         with open('pickletest', 'rb') as f:
             conversations_test = defaultdict(dict, pickle.load(f)['conversations'])
         assert conversations_test['name1'] == conversation1
+
+        pickle_persistence.conversations = None
+        pickle_persistence.update_conversation('name1', (123, 123), 5)
+        assert pickle_persistence.conversations['name1'] == {(123, 123): 5}
+        assert pickle_persistence.get_conversations('name1') == {(123, 123): 5}
 
     def test_save_on_flush_multi_files(self, pickle_persistence, good_pickle_files):
         # Should run without error
