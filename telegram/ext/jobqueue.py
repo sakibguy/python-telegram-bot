@@ -72,13 +72,13 @@ class JobQueue:
 
     def _build_args(self, job: 'Job') -> List[Union[CallbackContext, 'Bot', 'Job']]:
         if self._dispatcher.use_context:
-            return [CallbackContext.from_job(job, self._dispatcher)]
+            return [self._dispatcher.context_types.context.from_job(job, self._dispatcher)]
         return [self._dispatcher.bot, job]
 
     def _tz_now(self) -> datetime.datetime:
         return datetime.datetime.now(self.scheduler.timezone)
 
-    def _update_persistence(self, event: JobEvent) -> None:  # pylint: disable=W0613
+    def _update_persistence(self, _: JobEvent) -> None:
         self._dispatcher.update_persistence()
 
     def _dispatch_error(self, event: JobEvent) -> None:
@@ -218,6 +218,12 @@ class JobQueue:
     ) -> 'Job':
         """Creates a new ``Job`` that runs at specified intervals and adds it to the queue.
 
+        Note:
+            For a note about DST, please see the documentation of `APScheduler`_.
+
+        .. _`APScheduler`: https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
+                           #daylight-saving-time-behavior
+
         Args:
             callback (:obj:`callable`): The callback function that should be executed by the new
                 job. Callback signature for context based API:
@@ -267,11 +273,6 @@ class JobQueue:
         Returns:
             :class:`telegram.ext.Job`: The new ``Job`` instance that has been added to the job
             queue.
-
-        Note:
-             `interval` is always respected "as-is". That means that if DST changes during that
-             interval, the job might not run at the time one would expect. It is always recommended
-             to pin servers to UTC time, then time related behaviour can always be expected.
 
         """
         if not job_kwargs:
@@ -399,6 +400,12 @@ class JobQueue:
     ) -> 'Job':
         """Creates a new ``Job`` that runs on a daily basis and adds it to the queue.
 
+        Note:
+            For a note about DST, please see the documentation of `APScheduler`_.
+
+        .. _`APScheduler`: https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
+                           #daylight-saving-time-behavior
+
         Args:
             callback (:obj:`callable`): The callback function that should be executed by the new
                 job. Callback signature for context based API:
@@ -421,12 +428,6 @@ class JobQueue:
         Returns:
             :class:`telegram.ext.Job`: The new ``Job`` instance that has been added to the job
             queue.
-
-        Note:
-            For a note about DST, please see the documentation of `APScheduler`_.
-
-        .. _`APScheduler`: https://apscheduler.readthedocs.io/en/stable/modules/triggers/cron.html
-                           #daylight-saving-time-behavior
 
         """
         if not job_kwargs:
@@ -585,7 +586,7 @@ class Job:
         """Executes the callback function independently of the jobs schedule."""
         try:
             if dispatcher.use_context:
-                self.callback(CallbackContext.from_job(self, dispatcher))
+                self.callback(dispatcher.context_types.context.from_job(self, dispatcher))
             else:
                 self.callback(dispatcher.bot, self)  # type: ignore[arg-type,call-arg]
         except Exception as exc:
